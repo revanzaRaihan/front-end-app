@@ -4,12 +4,12 @@ import { boolean, number } from "zod";
 export interface Product {
  id: number;
  name: string;
- description: string;
+ description ?: string;
  price: number;
  stock: number;
- category: string;
- created_at: string;
- updated_at: string;
+ category ?: string;
+ created_at ?: string;
+ updated_at ?: string;
 }
 
 export type ProductPayload = Omit<Product, "id" | "created_at" | "updated_at">;
@@ -41,9 +41,8 @@ export const updateProduct = (id: number, data: ProductPayload) =>
         body: JSON.stringify(data),
     });
     
-
 // Hapus Produk
 export const deleteProduct = (id: number) =>
-    apiFetch<{message: string;}>(`/products${id}`, {
+    apiFetch<{message: string;}>(`/products/${id}`, {
         method: "DELETE",
     });
