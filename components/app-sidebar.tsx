@@ -1,59 +1,43 @@
+// AppSidebar.tsx
 "use client";
 
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconChartBar, IconDashboard, IconHelp, IconInnerShadowTop, IconSearch, IconSettings } from "@tabler/icons-react";
+import {
+  IconChartBar,
+  IconDashboard,
+  IconInnerShadowTop,
+} from "@tabler/icons-react";
 
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
 
 import { NavUser } from "@/components/nav-user";
 
-const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
+const navData = {
   navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: IconDashboard,
-    },
-    {
-      title: "Products",
-      url: "/products",
-      icon: IconChartBar,
-    },
+    { title: "Dashboard", url: "/dashboard", icon: IconDashboard },
+    { title: "Products", url: "/products", icon: IconChartBar },
   ],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: IconSettings,
-    },
-    {
-      title: "Get Help",
-      url: "/help",
-      icon: IconHelp,
-    },
-    {
-      title: "Search",
-      url: "/search",
-      icon: IconSearch,
-    },
-  ],
+  navSecondary: [], // semua item dihapus
 };
 
-// ================= NavMain =================
+// ================= NavList =================
 interface NavItemProps {
   title: string;
   url: string;
   icon: React.ElementType;
 }
 
-function NavMain({ items }: { items: NavItemProps[] }) {
+function NavList({ items }: { items: NavItemProps[] }) {
   const pathname = usePathname();
   return (
     <div className="space-y-1">
@@ -64,30 +48,11 @@ function NavMain({ items }: { items: NavItemProps[] }) {
           <Link
             key={item.title}
             href={item.url}
-            className={`flex items-center gap-2 px-3 py-2 rounded transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-800 ${isActive ? "bg-gray-200 dark:bg-gray-700 font-semibold" : ""}`}
-          >
-            <Icon className="!size-5" />
-            <span className="text-sm">{item.title}</span>
-          </Link>
-        );
-      })}
-    </div>
-  );
-}
-
-// ================= NavSecondary =================
-function NavSecondary({ items }: { items: NavItemProps[] }) {
-  const pathname = usePathname();
-  return (
-    <div className="space-y-1 mt-auto">
-      {items.map((item) => {
-        const Icon = item.icon;
-        const isActive = pathname === item.url;
-        return (
-          <Link
-            key={item.title}
-            href={item.url}
-            className={`flex items-center gap-2 px-3 py-2 rounded transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-800 ${isActive ? "bg-gray-200 dark:bg-gray-700 font-semibold" : ""}`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors duration-150
+              ${isActive
+                ? "bg-green-100 text-green-700 font-medium dark:bg-green-900 dark:text-green-200"
+                : "hover:bg-gray-100 text-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+              }`}
           >
             <Icon className="!size-5" />
             <span className="text-sm">{item.title}</span>
@@ -99,29 +64,45 @@ function NavSecondary({ items }: { items: NavItemProps[] }) {
 }
 
 // ================= AppSidebar =================
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({
+  user,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & {
+  user: { name: string; email: string; avatar?: string | null };
+}) {
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar
+      collapsible="offcanvas"
+      {...props}
+      className="bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800"
+    >
+      {/* HEADER */}
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
-              <Link href="/">
-                <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Laravel Next.JS</span>
+            <SidebarMenuButton
+              asChild
+              className="data-[slot=sidebar-menu-button]:!p-2"
+            >
+              <Link href="/" className="flex items-center gap-2">
+                <IconInnerShadowTop className="!size-5 text-green-600" />
+                <span className="text-base font-semibold bg-gradient-to-r from-green-600 to-green-400 bg-clip-text text-transparent">
+                  Laravel Next.JS
+                </span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} />
+      {/* MAIN NAV */}
+      <SidebarContent className="px-2 py-3 space-y-4">
+        <NavList items={navData.navMain} />
       </SidebarContent>
 
-      <SidebarFooter>
-        <NavUser user={data.user} />
+      {/* FOOTER (User Info & Logout) */}
+      <SidebarFooter className="p-2 border-t border-gray-200 dark:border-gray-800">
+        <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>
   );
