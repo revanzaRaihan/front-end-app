@@ -5,9 +5,17 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  IconChartBar,
   IconDashboard,
+  IconChartBar,
+  IconSettings,
+  IconUsers,
+  IconReportAnalytics,
   IconInnerShadowTop,
+  IconShoppingCart,
+  IconCreditCard,
+  IconReceipt,
+  IconUser,
+  IconBell,
 } from "@tabler/icons-react";
 
 import {
@@ -22,53 +30,72 @@ import {
 
 import { NavUser } from "@/components/nav-user";
 
-const navData = {
-  navMain: [
-    { title: "Dashboard", url: "/dashboard", icon: IconDashboard },
-    { title: "Products", url: "/products", icon: IconChartBar },
-  ],
-  navSecondary: [], // semua item dihapus
-};
-
-// ================= NavList =================
+// ================= Nav Items =================
 interface NavItemProps {
   title: string;
   url: string;
   icon: React.ElementType;
+  roles?: string[]; // allowed roles
 }
 
-function NavList({ items }: { items: NavItemProps[] }) {
+// ================= Nav Items =================
+const navData = {
+  navMain: [
+    { title: "Dashboard", url: "/dashboard", icon: IconDashboard, roles: ["admin", "seller"] },
+    { title: "Products", url: "/products", icon: IconChartBar, roles: ["admin", "seller", "viewer"] },
+    { title: "Manage Products", url: "/dashboard/seller/manage-products", icon: IconChartBar, roles: ["seller"] },
+    { title: "Users", url: "/dashboard/admin/manage-users", icon: IconUsers, roles: ["admin"] },
+    { title: "Sellers", url: "/dashboard/admin/manage-sellers", icon: IconUsers, roles: ["admin"] },
+    { title: "Reports", url: "/dashboard/admin/reports", icon: IconReportAnalytics, roles: ["admin"] },
+    { title: "Cart", url: "/cart", icon: IconShoppingCart, roles: ["viewer"] },
+    { title: "Checkout", url: "/checkout", icon: IconCreditCard, roles: ["viewer"] },
+    { title: "My Orders", url: "/orders", icon: IconReceipt, roles: ["viewer", "seller"] }, // seller juga bisa lihat orders
+  ],
+  navSecondary: [
+    { title: "Profile", url: "/profile", icon: IconUser, roles: ["admin", "viewer"] }, // ⬅️ hapus seller
+    { title: "Settings", url: "/settings", icon: IconSettings, roles: ["admin", "viewer"] }, // ⬅️ hapus seller
+    { title: "Notifications", url: "/notifications", icon: IconBell, roles: ["admin", "viewer"] }, // ⬅️ hapus seller
+  ],
+};
+
+
+
+// ================= NavList Component =================
+function NavList({ items, userRole }: { items: NavItemProps[]; userRole: string }) {
   const pathname = usePathname();
+
   return (
     <div className="space-y-1">
-      {items.map((item) => {
-        const Icon = item.icon;
-        const isActive = pathname === item.url;
-        return (
-          <Link
-            key={item.title}
-            href={item.url}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors duration-150
-              ${isActive
-                ? "bg-green-100 text-green-700 font-medium dark:bg-green-900 dark:text-green-200"
-                : "hover:bg-gray-100 text-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-              }`}
-          >
-            <Icon className="!size-5" />
-            <span className="text-sm">{item.title}</span>
-          </Link>
-        );
-      })}
+      {items
+        .filter((item) => !item.roles || item.roles.includes(userRole))
+        .map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.url;
+          return (
+            <Link
+              key={item.title}
+              href={item.url}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors duration-150
+                ${isActive
+                  ? "bg-green-100 text-green-700 font-medium dark:bg-green-900 dark:text-green-200"
+                  : "hover:bg-gray-100 text-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                }`}
+            >
+              <Icon className="!size-5" />
+              <span className="text-sm">{item.title}</span>
+            </Link>
+          );
+        })}
     </div>
   );
 }
 
-// ================= AppSidebar =================
+// ================= AppSidebar Component =================
 export function AppSidebar({
   user,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
-  user: { name: string; email: string; avatar?: string | null };
+  user: { name: string; email: string; avatar?: string | null; role: string };
 }) {
   return (
     <Sidebar
@@ -97,7 +124,10 @@ export function AppSidebar({
 
       {/* MAIN NAV */}
       <SidebarContent className="px-2 py-3 space-y-4">
-        <NavList items={navData.navMain} />
+        <NavList items={navData.navMain} userRole={user.role} />
+        <div className="border-t border-gray-200 dark:border-gray-800 pt-3">
+          <NavList items={navData.navSecondary} userRole={user.role} />
+        </div>
       </SidebarContent>
 
       {/* FOOTER (User Info & Logout) */}

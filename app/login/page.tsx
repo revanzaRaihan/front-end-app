@@ -2,46 +2,78 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { FaGoogle, FaGithub, FaEye, FaEyeSlash } from "react-icons/fa";
 
-export default function LoginPage() {
+export default function AuthPage() {
   const router = useRouter();
+  const [isLogin, setIsLogin] = useState(true);
+
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/auth/login", {
+      const url = isLogin
+        ? "http://127.0.0.1:8000/api/auth/login"
+        : "http://127.0.0.1:8000/api/auth/register";
+
+      const body = isLogin
+        ? { email, password }
+        : { name, email, password, password_confirmation: passwordConfirmation };
+
+      const res = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ email, password }),
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.message || "Login failed. Please try again.");
+        setError(data.message || "Something went wrong. Please try again.");
         return;
       }
 
-      localStorage.setItem("token", data.data.access_token);
+      // ✅ Ambil token secara aman
+      const token = data.data?.access_token ?? data.data?.token?.access_token;
+      if (!token) {
+        setError("Login/Register gagal: token tidak tersedia");
+        return;
+      }
+
+      localStorage.setItem("token", token);
       router.push("/dashboard");
-    } catch {
-      setError("Server error. Please try again.");
+    } catch (err: any) {
+      setError(err?.message || "Server error. Please try again.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const formVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -20 },
+  };
+
+  const inputVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: (i: number) => ({
+      opacity: 1,
+      y: 0,
+      transition: { delay: i * 0.05 },
+    }),
   };
 
   return (
@@ -57,106 +89,214 @@ export default function LoginPage() {
           <div className="absolute top-6 left-6 text-xl font-bold text-green-700">
             udoo!!
           </div>
-          <h1 className="text-4xl font-bold text-green-800 mb-4">Hello, welcome!</h1>
+          <h1 className="text-4xl font-bold text-green-800 mb-4">
+            {isLogin ? "Hello, welcome!" : "Join us!"}
+          </h1>
           <p className="text-green-700 text-center">
-            Manage your products easily and quickly 🚀  
-            Everything you need, right at your fingertips.
+            {isLogin
+              ? "Manage your products easily and quickly 🚀 Everything you need, right at your fingertips."
+              : "Create your account and manage your products easily 🚀 Everything you need, right at your fingertips."}
           </p>
-          <div className="absolute bottom-10 right-10 w-24 h-24 bg-green-300/40 rounded-full blur-2xl"></div>
         </div>
 
         {/* Right Side */}
         <div className="w-full md:w-1/2 flex flex-col justify-center p-10 relative">
-          {/* Soft green gradient + blur circles */}
           <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-green-100 -z-10 rounded-2xl"></div>
-          <div className="absolute top-10 left-1/4 w-32 h-32 bg-green-200/30 rounded-full blur-3xl -z-10"></div>
-          <div className="absolute bottom-10 right-1/4 w-24 h-24 bg-green-300/20 rounded-full blur-2xl -z-10"></div>
 
-          <h2 className="text-2xl font-semibold text-green-700 mb-6 text-center">
-            Login to udoo!!
-          </h2>
+          {/* Toggle buttons */}
+          <div className="flex justify-center gap-4 mb-6 relative z-10">
+            <button
+              onClick={() => setIsLogin(true)}
+              className={`px-4 py-2 rounded-lg font-semibold ${
+                isLogin ? "bg-green-600 text-white" : "bg-white text-green-600 border"
+              }`}
+            >
+              Login
+            </button>
+            <button
+              onClick={() => setIsLogin(false)}
+              className={`px-4 py-2 rounded-lg font-semibold ${
+                !isLogin ? "bg-green-600 text-white" : "bg-white text-green-600 border"
+              }`}
+            >
+              Register
+            </button>
+          </div>
 
-          <form
-            onSubmit={handleLogin}
-            className="flex flex-col gap-4 relative z-10"
-            autoComplete="off"
+          {/* Animated Form Container */}
+          <motion.div
+            layout
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="relative z-10"
           >
-            <input
-              type="email"
-              placeholder="Email Address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              name="email-login"
-              autoComplete="off"
-              required
-              className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 transition"
-            />
+            <AnimatePresence mode="wait">
+              {isLogin ? (
+                <motion.form
+                  key="login"
+                  onSubmit={handleSubmit}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  variants={formVariants}
+                  transition={{ duration: 0.3 }}
+                  className="flex flex-col gap-4"
+                  autoComplete="off"
+                >
+                  {[email, password].map((_, i) => (
+                    <motion.div key={i} custom={i} variants={inputVariants}>
+                      {i === 0 ? (
+                        <input
+                          type="email"
+                          placeholder="Email Address"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          required
+                          className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+                        />
+                      ) : (
+                        <div className="relative">
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                          >
+                            {showPassword ? <FaEyeSlash /> : <FaEye />}
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
+                  ))}
+                  {error && <p className="text-sm text-red-500 text-center font-medium">{error}</p>}
+                  <motion.button
+                    type="submit"
+                    disabled={loading}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="w-full py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    {loading ? "Logging in..." : "Login"}
+                  </motion.button>
+                </motion.form>
+              ) : (
+                <motion.form
+                  key="register"
+                  onSubmit={handleSubmit}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  variants={formVariants}
+                  transition={{ duration: 0.3 }}
+                  className="flex flex-col gap-4"
+                  autoComplete="off"
+                >
+                  {[name, email, password, passwordConfirmation].map((_, i) => (
+                    <motion.div key={i} custom={i} variants={inputVariants}>
+                      {i === 0 && (
+                        <input
+                          type="text"
+                          placeholder="Full Name"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          required
+                          className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+                        />
+                      )}
+                      {i === 1 && (
+                        <input
+                          type="email"
+                          placeholder="Email Address"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          required
+                          className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+                        />
+                      )}
+                      {i === 2 && (
+                        <div className="relative">
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                          >
+                            {showPassword ? <FaEyeSlash /> : <FaEye />}
+                          </button>
+                        </div>
+                      )}
+                      {i === 3 && (
+                        <div className="relative">
+                          <input
+                            type={showPasswordConfirm ? "text" : "password"}
+                            placeholder="Confirm Password"
+                            value={passwordConfirmation}
+                            onChange={(e) => setPasswordConfirmation(e.target.value)}
+                            required
+                            className="w-full px-4 py-3 border rounded-lg focus:outline-none focus
+:ring-2 focus:ring-green-400 transition"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
+                            className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                          >
+                            {showPasswordConfirm ? <FaEyeSlash /> : <FaEye />}
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
+                  ))}
+                  {error && <p className="text-sm text-red-500 text-center font-medium">{error}</p>}
+                  <motion.button
+                    type="submit"
+                    disabled={loading}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="w-full py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    {loading ? "Registering..." : "Register"}
+                  </motion.button>
+                </motion.form>
+              )}
+            </AnimatePresence>
 
-            {/* Password Input with toggle */}
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                name="password-login"
-                autoComplete="new-password"
-                required
-                className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 transition"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-              >
-                {showPassword ? <FaEyeSlash /> : <FaEye />}
-              </button>
+            {/* Divider */}
+            <div className="flex items-center gap-2 my-6">
+              <div className="flex-grow h-px bg-gray-300"></div>
+              <span className="text-gray-400 text-sm">or</span>
+              <div className="flex-grow h-px bg-gray-300"></div>
             </div>
 
-            {error && (
-              <p className="text-sm text-red-500 text-center font-medium">{error}</p>
-            )}
-
-            <motion.button
-              type="submit"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              disabled={loading}
-              className="w-full bg-green-600 text-white py-3 rounded-lg shadow hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-            >
-              {loading ? "Logging in..." : "Login"}
-            </motion.button>
-          </form>
-
-          {/* Divider */}
-          <div className="flex items-center gap-2 my-6 relative z-10">
-            <div className="flex-grow h-px bg-gray-300"></div>
-            <span className="text-gray-400 text-sm">or</span>
-            <div className="flex-grow h-px bg-gray-300"></div>
-          </div>
-
-          {/* Social Login */}
-          <div className="flex gap-4 relative z-10">
-            <motion.button
-              whileHover={{ y: -2 }}
-              className="flex items-center justify-center gap-2 w-1/2 border py-3 rounded-lg hover:bg-red-50 transition"
-            >
-              <FaGoogle className="text-red-500" /> Google
-            </motion.button>
-            <motion.button
-              whileHover={{ y: -2 }}
-              className="flex items-center justify-center gap-2 w-1/2 border py-3 rounded-lg hover:bg-gray-50 transition"
-            >
-              <FaGithub className="text-gray-700" /> GitHub
-            </motion.button>
-          </div>
-
-          <p className="text-center text-sm text-gray-500 mt-6 relative z-10">
-            Don’t have an account?{" "}
-            <a href="/register" className="text-green-600 hover:underline">
-              Register
-            </a>
-          </p>
+            {/* Social Login */}
+            <div className="flex gap-4">
+              <motion.button
+                whileHover={{ y: -2 }}
+                className="flex items-center justify-center gap-2 w-1/2 border py-3 rounded-lg hover:bg-red-50 transition"
+              >
+                <FaGoogle className="text-red-500" /> Google
+              </motion.button>
+              <motion.button
+                whileHover={{ y: -2 }}
+                className="flex items-center justify-center gap-2 w-1/2 border py-3 rounded-lg hover:bg-gray-50 transition"
+              >
+                <FaGithub className="text-gray-700" /> GitHub
+              </motion.button>
+            </div>
+          </motion.div>
         </div>
       </motion.div>
     </div>

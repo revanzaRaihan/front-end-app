@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
+import { useEffect, useState } from "react";
 import {
   getProducts,
   createProduct,
@@ -8,53 +8,68 @@ import {
   deleteProduct,
   Product,
   ProductPayload,
-} from "@/services/products"
+} from "@/services/products";
 
 export function useProducts() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  // Ambil semua produk
+  // 🔹 Fetch all products
   const fetchProducts = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const data = await getProducts()
-      setProducts(data)
+      const data = await getProducts();
+      setProducts(data);
     } catch (err) {
-      console.error("Gagal mengambil data produk", err)
+      console.error("Gagal mengambil data produk", err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  // Tambah produk
+  // 🔹 Add a new product
   const addProduct = async (payload: ProductPayload) => {
-    await createProduct(payload)
-    await fetchProducts()
-  }
+    try {
+      await createProduct(payload);
+      await fetchProducts();
+    } catch (err) {
+      console.error("Gagal menambahkan produk", err);
+      throw err;
+    }
+  };
 
-  // Edit produk
+  // 🔹 Edit an existing product
   const editProduct = async (id: number, payload: ProductPayload) => {
-    await updateProduct(id, payload)
-    await fetchProducts()
-  }
+    try {
+      await updateProduct(id, payload);
+      await fetchProducts();
+    } catch (err) {
+      console.error("Gagal memperbarui produk", err);
+      throw err;
+    }
+  };
 
-  // Hapus produk
+  // 🔹 Remove a product
   const removeProduct = async (id: number) => {
-    await deleteProduct(id)
-    await fetchProducts()
-  }
+    try {
+      await deleteProduct(id);
+      await fetchProducts();
+    } catch (err) {
+      console.error("Gagal menghapus produk", err);
+      throw err;
+    }
+  };
 
   useEffect(() => {
-    fetchProducts()
-  }, [])
+    fetchProducts();
+  }, []);
 
   return {
     products,
     loading,
+    fetchProducts, // expose fetch for manual refresh
     addProduct,
     editProduct,
     removeProduct,
-    fetchProducts, // ✅ sekarang ada
-  }
+  };
 }

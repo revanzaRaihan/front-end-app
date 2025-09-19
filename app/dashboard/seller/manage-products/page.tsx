@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AppSidebar } from "@/components/app-sidebar";
-import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { apiFetch } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 
 type UserType = {
   id: number;
@@ -22,10 +22,9 @@ type ProductType = {
   price: number;
   stock: number;
   image?: string;
-  user?: { id: number; name: string; role: string };
 };
 
-export default function DashboardPage() {
+export default function ManageProductsPage() {
   const router = useRouter();
   const [user, setUser] = useState<UserType | null>(null);
   const [isChecking, setIsChecking] = useState(true);
@@ -34,7 +33,7 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<ProductType[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
-  // ✅ Validasi user
+  // ✅ Cek user
   useEffect(() => {
     const fetchUser = async () => {
       const token = localStorage.getItem("token");
@@ -46,6 +45,11 @@ export default function DashboardPage() {
         });
         if (!res.ok) throw new Error("Unauthorized");
         const result = await res.json();
+
+        if (result.data.role === "admin") {
+          return router.replace("/dashboard");
+        }
+
         setUser(result.data);
       } catch {
         localStorage.removeItem("token");
@@ -58,30 +62,37 @@ export default function DashboardPage() {
     fetchUser();
   }, [router]);
 
-  // ✅ Fetch products sesuai role
+  // ✅ Fetch produk milik seller
+  const fetchProducts = async () => {
+    if (!user) return;
+    setLoadingProducts(true);
+    try {
+      const res = await apiFetch<{ status: boolean; message: string; data: ProductType[] }>(
+        "/seller/products",
+        { method: "GET" }
+      );
+      setProducts(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchProducts = async () => {
-      if (!user) return;
-      setLoadingProducts(true);
-
-      try {
-        const url =
-  user.role === "seller"
-    ? "/seller/products"
-    : "/products";
-
-const res = await apiFetch<{ status: boolean; message: string; data: ProductType[] }>(url, { method: "GET" });
-setProducts(res.data);
-
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoadingProducts(false);
-      }
-    };
-
     fetchProducts();
   }, [user]);
+
+  // ✅ Hapus produk
+  const handleDelete = async (id: number) => {
+    if (!confirm("Yakin ingin menghapus produk ini?")) return;
+    try {
+      await apiFetch(`/seller/products/${id}`, { method: "DELETE" });
+      fetchProducts();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   if (isChecking || !user) {
     return (
@@ -96,32 +107,21 @@ setProducts(res.data);
 
   return (
     <SidebarProvider
-      style={{
-        "--sidebar-width": "calc(var(--spacing) * 72)",
-        "--header-height": "calc(var(--spacing) * 12)",
-      } as React.CSSProperties}
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as React.CSSProperties
+      }
     >
       <AppSidebar variant="inset" user={user} />
       <SidebarInset className="w-full p-6">
-        <SiteHeader />
-
-        <div className={`relative w-full flex flex-col gap-8 transition-opacity duration-700 ${fadeIn ? "opacity-100" : "opacity-0"}`}>
-          {/* User Info */}
-          <div className="bg-white rounded-lg shadow p-6 flex flex-col md:flex-row items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold">{user.name}</h2>
-              <p className="text-gray-600">
-                Role: <span className="font-medium">{user.role}</span>
-              </p>
-              <p className="text-gray-600">Email: {user.email}</p>
-            </div>
-            {user.avatar && (
-              <img src={user.avatar} alt={user.name} className="w-16 h-16 rounded-full object-cover mt-4 md:mt-0" />
-            )}
-          </div>
-
-          {/* Produk Table */}
-          <div className="bg-white rounded-lg shadow overflow-x-auto mt-6">
+        <div
+          className={`relative w-full transition-opacity duration-700 ${
+            fadeIn ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          <div className="bg-white rounded-lg shadow overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead className="bg-green-50">
                 <tr>
@@ -129,20 +129,20 @@ setProducts(res.data);
                   <th className="p-3 border-b">Nama Produk</th>
                   <th className="p-3 border-b">Harga</th>
                   <th className="p-3 border-b">Stok</th>
-                  {user.role !== "seller" && <th className="p-3 border-b">Seller</th>}
+                  <th className="p-3 border-b">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {loadingProducts ? (
                   <tr>
-                    <td colSpan={user.role === "seller" ? 4 : 5} className="p-3 text-center">
+                    <td colSpan={5} className="p-3 text-center">
                       Loading products...
                     </td>
                   </tr>
                 ) : products.length === 0 ? (
                   <tr>
-                    <td colSpan={user.role === "seller" ? 4 : 5} className="p-3 text-center">
-                      No products available
+                    <td colSpan={5} className="p-3 text-center">
+                      Belum ada produk
                     </td>
                   </tr>
                 ) : (
@@ -153,12 +153,31 @@ setProducts(res.data);
                       <td className="p-3 border-b">Rp {p.price.toLocaleString()}</td>
                       <td
                         className={`p-3 border-b font-medium ${
-                          p.stock === 0 ? "text-red-600" : p.stock < 10 ? "text-yellow-600" : "text-green-600"
+                          p.stock === 0
+                            ? "text-red-600"
+                            : p.stock < 10
+                            ? "text-yellow-600"
+                            : "text-green-600"
                         }`}
                       >
                         {p.stock}
                       </td>
-                      {user.role !== "seller" && <td className="p-3 border-b">{p.user?.name || "-"}</td>}
+                      <td className="p-3 border-b space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => router.push(`/products/edit/${p.id}`)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDelete(p.id)}
+                        >
+                          Hapus
+                        </Button>
+                      </td>
                     </tr>
                   ))
                 )}
