@@ -44,17 +44,11 @@ const navData = {
     { title: "Dashboard", url: "/dashboard", icon: IconDashboard, roles: ["admin", "seller"] },
     { title: "Products", url: "/products", icon: IconChartBar, roles: ["admin", "seller", "viewer"] },
     { title: "Manage Products", url: "/dashboard/seller/manage-products", icon: IconChartBar, roles: ["seller"] },
-    { title: "Users", url: "/dashboard/admin/manage-users", icon: IconUsers, roles: ["admin"] },
-    { title: "Sellers", url: "/dashboard/admin/manage-sellers", icon: IconUsers, roles: ["admin"] },
-    { title: "Reports", url: "/dashboard/admin/reports", icon: IconReportAnalytics, roles: ["admin"] },
+    { title: "Users", url: "/dashboard/admin/manage-user", icon: IconUsers, roles: ["admin"] },
+    // { title: "Reports", url: "/dashboard/admin/reports", icon: IconReportAnalytics, roles: ["admin"] },
     { title: "Cart", url: "/cart", icon: IconShoppingCart, roles: ["viewer"] },
     { title: "Checkout", url: "/checkout", icon: IconCreditCard, roles: ["viewer"] },
     { title: "My Orders", url: "/orders", icon: IconReceipt, roles: ["viewer", "seller"] }, // seller juga bisa lihat orders
-  ],
-  navSecondary: [
-    { title: "Profile", url: "/profile", icon: IconUser, roles: ["admin", "viewer"] }, // ⬅️ hapus seller
-    { title: "Settings", url: "/settings", icon: IconSettings, roles: ["admin", "viewer"] }, // ⬅️ hapus seller
-    { title: "Notifications", url: "/notifications", icon: IconBell, roles: ["admin", "viewer"] }, // ⬅️ hapus seller
   ],
 };
 
@@ -125,9 +119,6 @@ export function AppSidebar({
       {/* MAIN NAV */}
       <SidebarContent className="px-2 py-3 space-y-4">
         <NavList items={navData.navMain} userRole={user.role} />
-        <div className="border-t border-gray-200 dark:border-gray-800 pt-3">
-          <NavList items={navData.navSecondary} userRole={user.role} />
-        </div>
       </SidebarContent>
 
       {/* FOOTER (User Info & Logout) */}

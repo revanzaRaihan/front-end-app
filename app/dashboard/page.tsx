@@ -1,12 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
 import { AppSidebar } from "@/components/app-sidebar";
-import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { apiFetch } from "@/lib/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 type UserType = {
   id: number;
@@ -30,6 +37,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<UserType | null>(null);
   const [isChecking, setIsChecking] = useState(true);
   const [fadeIn, setFadeIn] = useState(false);
+  const [showDialog, setShowDialog] = useState(false);
 
   const [products, setProducts] = useState<ProductType[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -42,11 +50,22 @@ export default function DashboardPage() {
 
       try {
         const res = await fetch("http://127.0.0.1:8000/api/auth/me", {
-          headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
         });
         if (!res.ok) throw new Error("Unauthorized");
+
         const result = await res.json();
-        setUser(result.data);
+        const fetchedUser: UserType = result.data;
+
+        if (fetchedUser.role === "viewer") {
+          setUser(fetchedUser);
+          setShowDialog(true);
+        } else {
+          setUser(fetchedUser);
+        }
       } catch {
         localStorage.removeItem("token");
         router.replace("/login");
@@ -55,24 +74,23 @@ export default function DashboardPage() {
         setTimeout(() => setFadeIn(true), 100);
       }
     };
+
     fetchUser();
   }, [router]);
 
   // ✅ Fetch products sesuai role
   useEffect(() => {
     const fetchProducts = async () => {
-      if (!user) return;
+      if (!user || user.role === "viewer") return;
       setLoadingProducts(true);
 
       try {
-        const url =
-  user.role === "seller"
-    ? "/seller/products"
-    : "/products";
-
-const res = await apiFetch<{ status: boolean; message: string; data: ProductType[] }>(url, { method: "GET" });
-setProducts(res.data);
-
+        const url = user.role === "seller" ? "/seller/products" : "/products";
+        const res = await apiFetch<{ status: boolean; message: string; data: ProductType[] }>(
+          url,
+          { method: "GET" }
+        );
+        setProducts(res.data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -82,6 +100,16 @@ setProducts(res.data);
 
     fetchProducts();
   }, [user]);
+
+  // ✅ Hitung ringkasan
+  const stats = useMemo(() => {
+    const total = products.length;
+    const habis = products.filter((p) => p.stock === 0).length;
+    const hampirHabis = products.filter((p) => p.stock > 0 && p.stock < 10).length;
+    const totalStok = products.reduce((sum, p) => sum + p.stock, 0);
+
+    return { total, habis, hampirHabis, totalStok };
+  }, [products]);
 
   if (isChecking || !user) {
     return (
@@ -94,18 +122,47 @@ setProducts(res.data);
     );
   }
 
+  // 🚫 Dialog untuk viewer
+  if (user.role === "viewer") {
+    return (
+      <Dialog open>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Akses Ditolak</DialogTitle>
+          </DialogHeader>
+          <p className="text-gray-600">
+            Halaman ini khusus Seller/Admin. Anda masuk sebagai <b>Viewer</b>.
+          </p>
+          <DialogFooter className="flex gap-2 mt-4">
+            <Button variant="secondary" onClick={() => router.push("/home")}>
+              Ke Home
+            </Button>
+            <Button variant="destructive" onClick={() => router.push("/login")}>
+              Ke Login
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // ✅ Halaman dashboard untuk admin & seller
   return (
     <SidebarProvider
-      style={{
-        "--sidebar-width": "calc(var(--spacing) * 72)",
-        "--header-height": "calc(var(--spacing) * 12)",
-      } as React.CSSProperties}
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as React.CSSProperties
+      }
     >
       <AppSidebar variant="inset" user={user} />
       <SidebarInset className="w-full p-6">
-        <SiteHeader />
-
-        <div className={`relative w-full flex flex-col gap-8 transition-opacity duration-700 ${fadeIn ? "opacity-100" : "opacity-0"}`}>
+        <div
+          className={`relative w-full flex flex-col gap-8 transition-opacity duration-700 ${
+            fadeIn ? "opacity-100" : "opacity-0"
+          }`}
+        >
           {/* User Info */}
           <div className="bg-white rounded-lg shadow p-6 flex flex-col md:flex-row items-center justify-between">
             <div>
@@ -116,12 +173,47 @@ setProducts(res.data);
               <p className="text-gray-600">Email: {user.email}</p>
             </div>
             {user.avatar && (
-              <img src={user.avatar} alt={user.name} className="w-16 h-16 rounded-full object-cover mt-4 md:mt-0" />
+              <img
+                src={user.avatar}
+                alt={user.name}
+                className="w-16 h-16 rounded-full object-cover mt-4 md:mt-0"
+              />
             )}
           </div>
 
-          {/* Produk Table */}
-          <div className="bg-white rounded-lg shadow overflow-x-auto mt-6">
+          {/* Statistik Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-lg shadow p-4">
+              <p className="text-gray-500">Total Produk</p>
+              <h3 className="text-2xl font-bold">{stats.total}</h3>
+            </div>
+            <div className="bg-white rounded-lg shadow p-4">
+              <p className="text-gray-500">Stok Habis</p>
+              <h3 className="text-2xl font-bold text-red-600">{stats.habis}</h3>
+            </div>
+            <div className="bg-white rounded-lg shadow p-4">
+              <p className="text-gray-500">Hampir Habis (&lt;10)</p>
+              <h3 className="text-2xl font-bold text-yellow-600">
+                {stats.hampirHabis}
+              </h3>
+            </div>
+            <div className="bg-white rounded-lg shadow p-4">
+              <p className="text-gray-500">Total Stok</p>
+              <h3 className="text-2xl font-bold text-green-600">{stats.totalStok}</h3>
+            </div>
+          </div>
+
+          {/* Produk terbaru */}
+          <div className="bg-white rounded-lg shadow overflow-x-auto">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-bold">Produk Terbaru</h3>
+              <button
+                onClick={() => router.push("/products")}
+                className="text-green-600 hover:underline text-sm"
+              >
+                Lihat Semua
+              </button>
+            </div>
             <table className="w-full text-left border-collapse">
               <thead className="bg-green-50">
                 <tr>
@@ -129,36 +221,54 @@ setProducts(res.data);
                   <th className="p-3 border-b">Nama Produk</th>
                   <th className="p-3 border-b">Harga</th>
                   <th className="p-3 border-b">Stok</th>
-                  {user.role !== "seller" && <th className="p-3 border-b">Seller</th>}
+                  {user.role !== "seller" && (
+                    <th className="p-3 border-b">Seller</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {loadingProducts ? (
                   <tr>
-                    <td colSpan={user.role === "seller" ? 4 : 5} className="p-3 text-center">
+                    <td
+                      colSpan={user.role === "seller" ? 4 : 5}
+                      className="p-3 text-center"
+                    >
                       Loading products...
                     </td>
                   </tr>
                 ) : products.length === 0 ? (
                   <tr>
-                    <td colSpan={user.role === "seller" ? 4 : 5} className="p-3 text-center">
+                    <td
+                      colSpan={user.role === "seller" ? 4 : 5}
+                      className="p-3 text-center"
+                    >
                       No products available
                     </td>
                   </tr>
                 ) : (
-                  products.map((p, idx) => (
+                  [...products].slice(0, 5).map((p, idx) => (
                     <tr key={p.id} className="hover:bg-green-50 transition">
                       <td className="p-3 border-b">{idx + 1}</td>
                       <td className="p-3 border-b">{p.name}</td>
-                      <td className="p-3 border-b">Rp {p.price.toLocaleString()}</td>
+                      <td className="p-3 border-b">
+                        Rp {p.price.toLocaleString()}
+                      </td>
                       <td
                         className={`p-3 border-b font-medium ${
-                          p.stock === 0 ? "text-red-600" : p.stock < 10 ? "text-yellow-600" : "text-green-600"
+                          p.stock === 0
+                            ? "text-red-600"
+                            : p.stock < 10
+                            ? "text-yellow-600"
+                            : "text-green-600"
                         }`}
                       >
                         {p.stock}
                       </td>
-                      {user.role !== "seller" && <td className="p-3 border-b">{p.user?.name || "-"}</td>}
+                      {user.role !== "seller" && (
+                        <td className="p-3 border-b">
+                          {p.user?.name || "-"}
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
