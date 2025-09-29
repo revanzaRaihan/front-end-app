@@ -45,10 +45,10 @@ const navData = {
     { title: "Products", url: "/products", icon: IconChartBar, roles: ["admin", "seller", "viewer"] },
     { title: "Manage Products", url: "/dashboard/seller/manage-products", icon: IconChartBar, roles: ["seller"] },
     { title: "Users", url: "/dashboard/admin/manage-user", icon: IconUsers, roles: ["admin"] },
-    // { title: "Reports", url: "/dashboard/admin/reports", icon: IconReportAnalytics, roles: ["admin"] },
+    { title: "Reports", url: "/dashboard/admin/reports", icon: IconReportAnalytics, roles: ["admin"] },
     { title: "Cart", url: "/cart", icon: IconShoppingCart, roles: ["viewer"] },
     { title: "Checkout", url: "/checkout", icon: IconCreditCard, roles: ["viewer"] },
-    { title: "My Orders", url: "/orders", icon: IconReceipt, roles: ["viewer", "seller"] }, // seller juga bisa lihat orders
+    { title: "My Orders", url: "/dashboard/seller/orders", icon: IconReceipt, roles: ["viewer", "seller"] }, // seller juga bisa lihat orders
   ],
 };
 

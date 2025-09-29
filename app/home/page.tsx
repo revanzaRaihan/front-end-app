@@ -10,7 +10,7 @@ import { FaInfoCircle, FaShoppingCart } from "react-icons/fa";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { apiFetch } from "@/lib/api";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
@@ -23,8 +23,14 @@ export default function HomePage() {
   const [filter, setFilter] = useState<"all" | "lowStock" | "outOfStock">("all");
   const [cartCount, setCartCount] = useState(0);
 
-  // 🔥 state untuk kontrol dialog
+  // 🔥 state untuk kontrol dialog akses
   const [showDialog, setShowDialog] = useState(false);
+
+  // 🔔 state untuk notifikasi
+  const [notif, setNotif] = useState<{ open: boolean; message: string }>({
+    open: false,
+    message: "",
+  });
 
   // Cek role user
   useEffect(() => {
@@ -74,7 +80,10 @@ export default function HomePage() {
 
   const addToCart = async (productId: number, productName: string) => {
     const token = localStorage.getItem("token");
-    if (!token) return alert("Silakan login terlebih dahulu");
+    if (!token) {
+      setNotif({ open: true, message: "Silakan login terlebih dahulu" });
+      return;
+    }
 
     try {
       const res = await apiFetch<{ status: boolean; data?: any }>("/cart", {
@@ -87,14 +96,23 @@ export default function HomePage() {
       });
 
       if (res.status) {
-        alert(`${productName} berhasil ditambahkan ke keranjang`);
+        setNotif({
+          open: true,
+          message: `${productName} berhasil ditambahkan ke keranjang`,
+        });
         fetchCartCount(); // update badge cart
       } else {
-        alert(`Gagal menambahkan ${productName} ke keranjang`);
+        setNotif({
+          open: true,
+          message: `Gagal menambahkan ${productName} ke keranjang`,
+        });
       }
     } catch (err) {
       console.error(err);
-      alert("Terjadi kesalahan saat menambahkan ke keranjang");
+      setNotif({
+        open: true,
+        message: "Terjadi kesalahan saat menambahkan ke keranjang",
+      });
     }
   };
 
@@ -119,6 +137,19 @@ export default function HomePage() {
               Dashboard
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 🔔 Dialog Notifikasi Global */}
+      <Dialog open={notif.open} onOpenChange={(open) => setNotif({ ...notif, open })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Notifikasi</DialogTitle>
+          </DialogHeader>
+          <p>{notif.message}</p>
+          <DialogFooter className="flex justify-end">
+            <Button onClick={() => setNotif({ ...notif, open: false })}>OK</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -244,7 +275,7 @@ export default function HomePage() {
   );
 }
 
-// Product Card
+// Product Card dengan dialog konfirmasi Add to Cart
 function ProductCard({
   product,
   formatPrice,
@@ -254,37 +285,67 @@ function ProductCard({
   formatPrice: (price: number) => string;
   addToCart: (productId: number, productName: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <div className="group bg-white rounded-xl shadow-md hover:shadow-xl overflow-hidden transition flex flex-col">
-      <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden">
-        <img
-          src={product.image || "https://via.placeholder.com/300"}
-          alt={product.name}
-          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
-        />
-      </div>
-      <div className="p-4 text-center flex-1 flex flex-col justify-between">
-        <div>
-          <h3 className="text-md font-medium text-gray-900 group-hover:text-green-700 transition tracking-tight">
-            {product.name}
-          </h3>
-          <p className="mt-1 text-green-700 font-bold text-md">{formatPrice(product.price)}</p>
+    <>
+      <div className="group bg-white rounded-xl shadow-md hover:shadow-xl overflow-hidden transition flex flex-col">
+        <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden">
+          <img
+            src={product.image || "https://via.placeholder.com/300"}
+            alt={product.name}
+            className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
+          />
         </div>
-        <div className="flex justify-center gap-2 mt-2">
-          <Link
-            href={`/products/${product.id}`}
-            className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-green-700 transition"
-          >
-            <FaInfoCircle /> Detail
-          </Link>
-          <button
-            className="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded-full text-sm font-medium hover:bg-green-700 transition"
-            onClick={() => addToCart(product.id, product.name)}
-          >
-            <FaShoppingCart /> Add
-          </button>
+        <div className="p-4 text-center flex-1 flex flex-col justify-between">
+          <div>
+            <h3 className="text-md font-medium text-gray-900 group-hover:text-green-700 transition tracking-tight">
+              {product.name}
+            </h3>
+            <p className="mt-1 text-green-700 font-bold text-md">{formatPrice(product.price)}</p>
+          </div>
+          <div className="flex justify-center gap-2 mt-2">
+            <Link
+              href={`/products/${product.id}`}
+              className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-green-700 transition"
+            >
+              <FaInfoCircle /> Detail
+            </Link>
+            <button
+              className="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded-full text-sm font-medium hover:bg-green-700 transition"
+              onClick={() => setOpen(true)}
+            >
+              <FaShoppingCart /> Add
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* 🔥 Dialog Konfirmasi Tambah Keranjang */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tambah ke Keranjang</DialogTitle>
+          </DialogHeader>
+          <p>
+            Apakah Anda yakin ingin menambahkan{" "}
+            <span className="font-semibold">{product.name}</span> ke keranjang?
+          </p>
+          <DialogFooter className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              onClick={() => {
+                addToCart(product.id, product.name);
+                setOpen(false);
+              }}
+            >
+              Ya, Tambahkan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
